@@ -25,6 +25,78 @@ let mode: "edit" | "read" = "edit";
 const RECENT_MAX = 10;
 let recent: string[] = []; // 最近打开的文件路径列表（最新在前）
 
+// ---------- 国际化 ----------
+type Lang = "zh" | "en";
+const I18N = {
+  zh: {
+    new: "新建",
+    open: "打开",
+    save: "保存",
+    recentTitle: "最近打开",
+    clearAll: "清空全部记录",
+    collapse: "收起侧边栏",
+    expand: "展开侧边栏",
+    edit: "编辑",
+    read: "阅读",
+    editMode: "编辑模式",
+    readMode: "阅读模式",
+    outline: "大纲",
+    untitled: "未命名",
+    emptyRecent: "暂无最近打开的文档",
+    removeRecent: "从最近列表移除",
+    appName: "Markdown 编辑器",
+    unsavedTitle: "未保存的修改",
+    unsavedDiscard: "当前文件有未保存的修改，是否放弃并继续？",
+    unsavedClose: "当前文件有未保存的修改，确定要关闭吗？",
+    errorTitle: "错误",
+    openFail: "打开文件失败：",
+    saveFail: "保存文件失败：",
+    mdFilter: "Markdown",
+    switchTo: "Switch to English",
+    langLabel: "EN",
+  },
+  en: {
+    new: "New",
+    open: "Open",
+    save: "Save",
+    recentTitle: "Recent",
+    clearAll: "Clear all",
+    collapse: "Collapse sidebar",
+    expand: "Expand sidebar",
+    edit: "Edit",
+    read: "Read",
+    editMode: "Edit mode",
+    readMode: "Reading mode",
+    outline: "Outline",
+    untitled: "Untitled",
+    emptyRecent: "No recent documents",
+    removeRecent: "Remove from recent",
+    appName: "Markdown Editor",
+    unsavedTitle: "Unsaved changes",
+    unsavedDiscard: "This file has unsaved changes. Discard and continue?",
+    unsavedClose: "This file has unsaved changes. Close anyway?",
+    errorTitle: "Error",
+    openFail: "Failed to open file: ",
+    saveFail: "Failed to save file: ",
+    mdFilter: "Markdown",
+    switchTo: "切换为中文",
+    langLabel: "中",
+  },
+} as const;
+
+function detectLang(): Lang {
+  try {
+    const saved = localStorage.getItem("lang");
+    if (saved === "zh" || saved === "en") return saved;
+  } catch {
+    /* 忽略 */
+  }
+  return (navigator.language || "en").toLowerCase().startsWith("zh") ? "zh" : "en";
+}
+
+let lang: Lang = detectLang();
+const t = () => I18N[lang];
+
 // ---------- Markdown 渲染器 ----------
 function escapeHtml(s: string): string {
   return s
@@ -66,6 +138,8 @@ const recentClearBtn = document.getElementById("recent-clear")!;
 const appEl = document.querySelector<HTMLElement>(".app")!;
 const sidebarToggle = document.getElementById("sidebar-toggle")!;
 const saveBtn = document.getElementById("btn-save")!;
+const langToggle = document.getElementById("lang-toggle")!;
+const sidebarTitle = document.getElementById("sidebar-title")!;
 
 // 安全获取当前窗口：非 Tauri 环境（浏览器预览）下 getCurrentWindow() 会同步抛错
 let appWindow: ReturnType<typeof getCurrentWindow> | null = null;
@@ -124,14 +198,14 @@ function setDirty(dirty: boolean) {
 }
 
 function fileDisplayName(): string {
-  if (!currentFilePath) return "未命名";
+  if (!currentFilePath) return t().untitled;
   return currentFilePath.split("/").pop() || currentFilePath;
 }
 
 function updateWindowTitle() {
   const name = fileDisplayName();
   document.getElementById("filename")!.textContent = name;
-  const title = `${isDirty ? "• " : ""}${name} — Markdown 编辑器`;
+  const title = `${isDirty ? "• " : ""}${name} — ${t().appName}`;
   document.title = title;
   appWindow?.setTitle(title).catch(() => {});
 }
@@ -173,7 +247,7 @@ function buildOutline() {
 
   const title = document.createElement("div");
   title.className = "outline-title";
-  title.textContent = "大纲";
+  title.textContent = t().outline;
   outlineEl.appendChild(title);
 
   headings.forEach((h, i) => {
@@ -225,8 +299,8 @@ function toggleMode() {
 // ---------- 未保存守卫 ----------
 async function guardUnsaved(): Promise<boolean> {
   if (!isDirty) return true;
-  return await ask("当前文件有未保存的修改，是否放弃并继续？", {
-    title: "未保存的修改",
+  return await ask(t().unsavedDiscard, {
+    title: t().unsavedTitle,
     kind: "warning",
   });
 }
@@ -244,7 +318,7 @@ async function openFile() {
   if (!(await guardUnsaved())) return;
   const selected = await open({
     multiple: false,
-    filters: [{ name: "Markdown", extensions: ["md", "markdown", "txt"] }],
+    filters: [{ name: t().mdFilter, extensions: ["md", "markdown", "txt"] }],
   });
   if (typeof selected !== "string") return; // 用户取消
   await loadPath(selected);
@@ -260,7 +334,7 @@ async function loadPath(path: string) {
     addRecent(path);
   } catch (e) {
     removeRecent(path); // 文件读取失败（可能已被删/移走），从最近列表移除
-    await message(`打开文件失败：${e}`, { title: "错误", kind: "error" });
+    await message(t().openFail + e, { title: t().errorTitle, kind: "error" });
   }
 }
 
@@ -274,8 +348,8 @@ async function saveFile() {
 
 async function saveFileAs() {
   const path = await save({
-    defaultPath: currentFilePath ?? "未命名.md",
-    filters: [{ name: "Markdown", extensions: ["md", "markdown"] }],
+    defaultPath: currentFilePath ?? `${t().untitled}.md`,
+    filters: [{ name: t().mdFilter, extensions: ["md", "markdown"] }],
   });
   if (!path) return; // 用户取消
   currentFilePath = path;
@@ -288,7 +362,7 @@ async function writePath(path: string) {
     setDirty(false);
     addRecent(path);
   } catch (e) {
-    await message(`保存文件失败：${e}`, { title: "错误", kind: "error" });
+    await message(t().saveFail + e, { title: t().errorTitle, kind: "error" });
   }
 }
 
@@ -344,7 +418,7 @@ function renderRecent() {
   if (recent.length === 0) {
     const empty = document.createElement("div");
     empty.className = "recent-empty";
-    empty.textContent = "暂无最近打开的文档";
+    empty.textContent = t().emptyRecent;
     recentListEl.appendChild(empty);
     return;
   }
@@ -366,7 +440,7 @@ function renderRecent() {
     const remove = document.createElement("button");
     remove.className = "recent-remove";
     remove.textContent = "×";
-    remove.title = "从最近列表移除";
+    remove.title = t().removeRecent;
     remove.addEventListener("click", (e) => {
       e.stopPropagation(); // 不要触发打开
       removeRecent(path);
@@ -388,8 +462,9 @@ async function openRecent(path: string) {
 // ---------- 侧边栏收起/展开 ----------
 function setSidebarCollapsed(collapsed: boolean) {
   appEl.classList.toggle("sidebar-collapsed", collapsed);
-  sidebarToggle.title = collapsed ? "展开侧边栏 (⌘\\)" : "收起侧边栏 (⌘\\)";
-  sidebarToggle.setAttribute("aria-label", collapsed ? "展开侧边栏" : "收起侧边栏");
+  const label = collapsed ? t().expand : t().collapse;
+  sidebarToggle.title = `${label} (⌘\\)`;
+  sidebarToggle.setAttribute("aria-label", label);
   try {
     localStorage.setItem("sidebarCollapsed", collapsed ? "1" : "0");
   } catch {
@@ -399,6 +474,46 @@ function setSidebarCollapsed(collapsed: boolean) {
 
 function toggleSidebar() {
   setSidebarCollapsed(!appEl.classList.contains("sidebar-collapsed"));
+}
+
+// ---------- 语言应用 ----------
+function applyLang() {
+  const s = t();
+  const setText = (id: string, text: string, title?: string) => {
+    const el = document.getElementById(id)!;
+    el.textContent = text;
+    if (title) el.title = title;
+  };
+  setText("btn-new", s.new, `${s.new} (⌘N)`);
+  setText("btn-open", s.open, `${s.open} (⌘O)`);
+  setText("btn-save", s.save, `${s.save} (⌘S)`);
+  setText("mode-edit", s.edit, `${s.editMode} (⌘E)`);
+  setText("mode-read", s.read, `${s.readMode} (⌘E)`);
+  sidebarTitle.textContent = s.recentTitle;
+  recentClearBtn.title = s.clearAll;
+  recentClearBtn.setAttribute("aria-label", s.clearAll);
+  langToggle.textContent = s.langLabel;
+  langToggle.title = s.switchTo;
+  document.documentElement.lang = lang === "zh" ? "zh-CN" : "en";
+  // 依赖语言的动态区一并刷新
+  setSidebarCollapsed(appEl.classList.contains("sidebar-collapsed")); // 刷新收起按钮 title
+  updateWindowTitle();
+  renderRecent();
+  if (mode === "read") renderPreview();
+}
+
+function setLang(next: Lang) {
+  lang = next;
+  try {
+    localStorage.setItem("lang", next);
+  } catch {
+    /* 忽略 */
+  }
+  applyLang();
+}
+
+function toggleLang() {
+  setLang(lang === "zh" ? "en" : "zh");
 }
 
 // ---------- 明暗主题 ----------
@@ -434,6 +549,9 @@ recentClearBtn.addEventListener("click", () => {
 // 侧边栏收起/展开
 sidebarToggle.addEventListener("click", toggleSidebar);
 
+// 语言切换（中 / EN）
+langToggle.addEventListener("click", toggleLang);
+
 // 全局快捷键
 window.addEventListener("keydown", (e) => {
   if (!(e.metaKey || e.ctrlKey)) return;
@@ -460,8 +578,8 @@ window.addEventListener("keydown", (e) => {
 appWindow
   ?.onCloseRequested(async (event) => {
     if (!isDirty) return;
-    const discard = await ask("当前文件有未保存的修改，确定要关闭吗？", {
-      title: "未保存的修改",
+    const discard = await ask(t().unsavedClose, {
+      title: t().unsavedTitle,
       kind: "warning",
     });
     if (!discard) event.preventDefault();
@@ -510,7 +628,7 @@ try {
 }
 // 初始状态就位后再开启过渡动画，避免启动闪动
 setTimeout(() => appEl.classList.add("anim-ready"), 60);
-updateWindowTitle();
+applyLang(); // 应用语言（内部会刷新标题/最近列表/收起按钮）
 editor.focus();
 loadRecent();
 loadPendingFileOnStartup();

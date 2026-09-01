@@ -314,6 +314,24 @@ body {
   color: var(--text);
 }
 
+/* 语言切换（中/EN）：ghost 文字按钮，三级 */
+.toolbar .lang-btn {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.toolbar .lang-btn:hover {
+  background: var(--btn-hover);
+  color: var(--text);
+}
+
 /* 保存 = 唯一主操作：干净态收敛为次要，有未保存改动时点亮为实心强调色 */
 .toolbar-save {
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;

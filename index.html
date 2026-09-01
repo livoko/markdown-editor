@@ -16,7 +16,7 @@
           <button id="btn-open" class="side-action" title="打开 (⌘O)">打开</button>
         </div>
         <div class="sidebar-header">
-          <span class="sidebar-title">最近打开</span>
+          <span id="sidebar-title" class="sidebar-title">最近打开</span>
           <button id="recent-clear" class="sidebar-clear" title="清空全部记录" aria-label="清空全部记录">
             <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
               <path d="M2.5 4h11M6 4V2.8c0-.44.32-.8.8-.8h2.4c.48 0 .8.36.8.8V4M4 4l.6 9.1c.03.5.44.9.94.9h4.92c.5 0 .9-.4.94-.9L12 4" />
@@ -43,6 +43,7 @@
           </div>
 
           <div class="toolbar-group">
+            <button id="lang-toggle" class="lang-btn" title="Switch to English">EN</button>
             <div class="mode-switch" role="tablist">
               <button id="mode-edit" class="active" title="编辑模式 (⌘E)">编辑</button>
               <button id="mode-read" title="阅读模式 (⌘E)">阅读</button>
