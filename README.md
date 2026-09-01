@@ -1,3 +1,5 @@
+[English](README.en.md) | **简体中文**
+
 # Markdown 编辑器
 
 一个简洁的 macOS 桌面 Markdown 编辑器，支持阅读与编辑两种模式。基于 [Tauri 2](https://tauri.app/) + TypeScript 构建，体积小、启动快。
