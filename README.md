@@ -2,6 +2,15 @@
 
 一个简洁的 macOS 桌面 Markdown 编辑器，支持阅读与编辑两种模式。基于 [Tauri 2](https://tauri.app/) + TypeScript 构建，体积小、启动快。
 
+![阅读模式：左侧最近文件、中间大纲导航、右侧渲染预览](docs/screenshot-read.png)
+
+<details>
+<summary>编辑模式（语法高亮）</summary>
+
+![编辑模式：CodeMirror 语法高亮](docs/screenshot-edit.png)
+
+</details>
+
 ## 功能
 
 - **阅读 / 编辑** 双模式，`⌘E` 一键切换；打开文件默认进入阅读模式
