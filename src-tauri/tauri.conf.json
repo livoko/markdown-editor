@@ -42,6 +42,10 @@
         "role": "Editor",
         "mimeType": "text/markdown"
       }
-    ]
+    ],
+    "resources": {
+      "localization/en.lproj/InfoPlist.strings": "en.lproj/InfoPlist.strings",
+      "localization/zh-Hans.lproj/InfoPlist.strings": "zh-Hans.lproj/InfoPlist.strings"
+    }
   }
 }
