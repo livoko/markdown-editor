@@ -4,6 +4,7 @@ import { keymap } from "@codemirror/view";
 import { markdown } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
 import { oneDark } from "@codemirror/theme-one-dark";
+import { search } from "@codemirror/search";
 
 import MarkdownIt from "markdown-it";
 import taskLists from "markdown-it-task-lists";
@@ -97,6 +98,24 @@ function detectLang(): Lang {
 let lang: Lang = detectLang();
 const t = () => I18N[lang];
 
+// CodeMirror 查找/替换面板的中文文案（英文用其默认值）
+const SEARCH_PHRASES_ZH: Record<string, string> = {
+  "Find": "查找",
+  "Replace": "替换",
+  "next": "下一个",
+  "previous": "上一个",
+  "all": "全部",
+  "match case": "区分大小写",
+  "by word": "全字匹配",
+  "regexp": "正则",
+  "replace": "替换",
+  "replace all": "全部替换",
+  "close": "关闭",
+  "Go to line": "跳转到行",
+  "go": "跳转",
+  "current match": "当前匹配",
+};
+
 // ---------- Markdown 渲染器 ----------
 function escapeHtml(s: string): string {
   return s
@@ -128,6 +147,11 @@ const md = new MarkdownIt({
 
 // ---------- CodeMirror 编辑器 ----------
 const themeCompartment = new Compartment();
+const searchPhrasesCompartment = new Compartment(); // 查找/替换面板文案（随语言切换）
+
+function searchPhrasesExt() {
+  return EditorState.phrases.of(lang === "zh" ? SEARCH_PHRASES_ZH : {});
+}
 
 const editorParent = document.getElementById("editor")!;
 const readViewEl = document.getElementById("read-view")!;
@@ -157,6 +181,8 @@ const editor = new EditorView({
       basicSetup,
       markdown({ codeLanguages: languages }),
       EditorView.lineWrapping,
+      search({ top: true }), // 查找/替换面板置顶（含"全部替换"批量替换）
+      searchPhrasesCompartment.of(searchPhrasesExt()),
       themeCompartment.of([]), // 主题由 applyTheme 动态注入
       EditorView.updateListener.of((update) => {
         if (update.docChanged && !loadingContent) {
@@ -510,6 +536,10 @@ function setLang(next: Lang) {
     /* 忽略 */
   }
   applyLang();
+  // 刷新查找/替换面板文案
+  editor.dispatch({
+    effects: searchPhrasesCompartment.reconfigure(searchPhrasesExt()),
+  });
 }
 
 function toggleLang() {
