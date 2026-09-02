@@ -74,6 +74,9 @@ const I18N = {
     optWord: "全字匹配",
     optRegex: "正则表达式",
     noResults: "无结果",
+    exportLabel: "导出",
+    exportHtml: "导出 HTML",
+    exportPdf: "导出 PDF",
   },
   en: {
     new: "New",
@@ -112,6 +115,9 @@ const I18N = {
     optWord: "Whole word",
     optRegex: "Regular expression",
     noResults: "No results",
+    exportLabel: "Export",
+    exportHtml: "Export HTML",
+    exportPdf: "Export PDF",
   },
 } as const;
 
@@ -178,6 +184,9 @@ const findCountEl = document.getElementById("find-count")!;
 const optCaseBtn = document.getElementById("opt-case")!;
 const optWordBtn = document.getElementById("opt-word")!;
 const optRegexBtn = document.getElementById("opt-regex")!;
+const exportBtn = document.getElementById("btn-export")!;
+const exportMenu = document.getElementById("export-menu")!;
+const printArea = document.getElementById("print-area")!;
 
 // 安全获取当前窗口：非 Tauri 环境（浏览器预览）下 getCurrentWindow() 会同步抛错
 let appWindow: ReturnType<typeof getCurrentWindow> | null = null;
@@ -608,6 +617,91 @@ function toggleFindOption(which: "case" | "word" | "regex") {
   refreshFind(true);
 }
 
+// ---------- 导出 HTML / PDF ----------
+// 导出用的独立样式（浅色，任何地方打开都好看）
+const EXPORT_CSS = `
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Helvetica Neue", sans-serif; color: #1d1d1f; background: #fff; line-height: 1.75; font-size: 16px; max-width: 820px; margin: 40px auto; padding: 0 24px; -webkit-font-smoothing: antialiased; }
+h1,h2,h3,h4 { font-weight: 600; line-height: 1.3; margin: 1.6em 0 .6em; }
+h1 { font-size: 1.9em; padding-bottom:.3em; border-bottom:1px solid #e2e2e6; }
+h2 { font-size: 1.5em; padding-bottom:.3em; border-bottom:1px solid #e2e2e6; }
+h3 { font-size: 1.25em; }
+p { margin: .8em 0; }
+a { color: #1f5cff; text-decoration: none; }
+ul,ol { padding-left: 1.6em; margin:.6em 0; }
+li { margin:.25em 0; }
+blockquote { margin:.9em 0; padding:.2em 1em; color:#6e6e73; border-left:3px solid #e2e2e6; }
+code { font-family: "SF Mono", "Cascadia Code", Consolas, ui-monospace, monospace; font-size:.88em; background:#f6f8fa; padding:.15em .4em; border-radius:4px; }
+pre { margin:1em 0; padding:14px 16px; background:#f6f8fa; border-radius:8px; overflow-x:auto; }
+pre code { background:none; padding:0; font-size:.86em; line-height:1.5; }
+table { border-collapse: collapse; margin:1em 0; }
+th,td { border:1px solid #e2e2e6; padding:7px 13px; }
+th { background:#f5f5f7; font-weight:600; }
+img { max-width:100%; }
+hr { border:none; border-top:1px solid #e2e2e6; margin:1.6em 0; }
+input[type=checkbox]{ margin-right:.5em; }
+ul.contains-task-list { list-style:none; padding-left:.4em; }
+`;
+
+function buildStandaloneHtml(): string {
+  const title = fileDisplayName();
+  return `<!doctype html>
+<html lang="${lang === "zh" ? "zh-CN" : "en"}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${escapeHtml(title)}</title>
+<style>${EXPORT_CSS}
+${githubLight}</style>
+</head>
+<body>
+${md.render(getContent())}
+</body>
+</html>`;
+}
+
+function exportBaseName(): string {
+  return currentFilePath
+    ? baseName(currentFilePath).replace(/\.(md|markdown|txt)$/i, "")
+    : t().untitled;
+}
+
+async function exportHtml() {
+  closeExportMenu();
+  const path = await save({
+    defaultPath: `${exportBaseName()}.html`,
+    filters: [{ name: "HTML", extensions: ["html"] }],
+  });
+  if (!path) return;
+  try {
+    await invoke("write_file", { path, contents: buildStandaloneHtml() });
+  } catch (e) {
+    await message(t().saveFail + e, { title: t().errorTitle, kind: "error" });
+  }
+}
+
+// PDF：把渲染内容放进打印容器，用系统打印（对话框里选"存储为 PDF"）
+function exportPdf() {
+  closeExportMenu();
+  printArea.innerHTML = md.render(getContent());
+  const prev = hljsStyle.textContent; // 打印时强制浅色代码高亮
+  hljsStyle.textContent = githubLight;
+  const restore = () => {
+    hljsStyle.textContent = prev;
+    window.removeEventListener("afterprint", restore);
+  };
+  window.addEventListener("afterprint", restore);
+  window.print();
+}
+
+function toggleExportMenu(e: Event) {
+  e.stopPropagation();
+  exportMenu.classList.toggle("hidden");
+}
+
+function closeExportMenu() {
+  exportMenu.classList.add("hidden");
+}
+
 // ---------- 语言应用 ----------
 function applyLang() {
   const s = t();
@@ -637,6 +731,11 @@ function applyLang() {
   optCaseBtn.title = s.optCase;
   optWordBtn.title = s.optWord;
   optRegexBtn.title = s.optRegex;
+  // 导出菜单
+  exportBtn.textContent = `${s.exportLabel} ▾`;
+  exportBtn.title = s.exportLabel;
+  document.getElementById("export-html")!.textContent = s.exportHtml;
+  document.getElementById("export-pdf")!.textContent = s.exportPdf;
   document.documentElement.lang = lang === "zh" ? "zh-CN" : "en";
   // 依赖语言的动态区一并刷新
   setSidebarCollapsed(appEl.classList.contains("sidebar-collapsed")); // 刷新收起按钮 title
@@ -739,6 +838,16 @@ document.getElementById("replace-all")!.addEventListener("click", () => {
 optCaseBtn.addEventListener("click", () => toggleFindOption("case"));
 optWordBtn.addEventListener("click", () => toggleFindOption("word"));
 optRegexBtn.addEventListener("click", () => toggleFindOption("regex"));
+
+// 导出菜单
+exportBtn.addEventListener("click", toggleExportMenu);
+document.getElementById("export-html")!.addEventListener("click", exportHtml);
+document.getElementById("export-pdf")!.addEventListener("click", exportPdf);
+document.addEventListener("click", (e) => {
+  if (!exportMenu.classList.contains("hidden") && !exportMenu.contains(e.target as Node)) {
+    closeExportMenu();
+  }
+});
 
 // 语言切换（中 / EN）
 langToggle.addEventListener("click", toggleLang);

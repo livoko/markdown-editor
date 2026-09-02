@@ -36,6 +36,13 @@
               </svg>
             </button>
             <button id="btn-save" class="toolbar-save" title="保存 (⌘S)">保存</button>
+            <div class="export-wrap">
+              <button id="btn-export" class="toolbar-export" type="button" title="导出">导出 ▾</button>
+              <div id="export-menu" class="export-menu hidden">
+                <button id="export-html" class="export-item" type="button">导出 HTML</button>
+                <button id="export-pdf" class="export-item" type="button">导出 PDF</button>
+              </div>
+            </div>
           </div>
 
           <div class="toolbar-title">
@@ -86,5 +93,8 @@
         </div>
       </div>
     </div>
+
+    <!-- 导出 PDF 用：打印时只显示这里的渲染内容 -->
+    <div id="print-area" class="print-area markdown-body"></div>
   </body>
 </html>

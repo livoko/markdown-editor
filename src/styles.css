@@ -517,6 +517,42 @@ body {
   filter: brightness(1.08);
 }
 
+/* 导出菜单（工具栏下拉） */
+.export-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.export-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 150px;
+  background: var(--btn-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  padding: 4px;
+  z-index: 100;
+}
+
+.export-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.export-item:hover {
+  background: var(--btn-hover);
+}
+
 /* 模式切换开关 */
 .mode-switch {
   display: inline-flex;
@@ -772,4 +808,50 @@ body {
 .markdown-body ul.contains-task-list {
   list-style: none;
   padding-left: 0.4em;
+}
+
+/* ---------- 导出 PDF：打印样式 ---------- */
+.print-area {
+  display: none;
+}
+
+@media print {
+  .app {
+    display: none !important;
+  }
+  .find-popup {
+    display: none !important;
+  }
+  .print-area {
+    display: block !important;
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
+    color: #1d1d1f;
+    background: #ffffff;
+  }
+  .print-area a {
+    color: #1f5cff;
+  }
+  .print-area pre,
+  .print-area code {
+    background: #f4f5f7 !important;
+  }
+  .print-area th {
+    background: #f0f0f2 !important;
+  }
+  .print-area h1,
+  .print-area h2,
+  .print-area hr,
+  .print-area td,
+  .print-area th,
+  .print-area blockquote {
+    border-color: #dddde2 !important;
+  }
+  .print-area blockquote {
+    color: #555555 !important;
+  }
+  @page {
+    margin: 16mm;
+  }
 }
