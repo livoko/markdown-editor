@@ -23,6 +23,7 @@ A clean, native macOS Markdown editor with separate reading and editing modes. B
 - **File sidebar**: New / Open + a recent-files list (remove entries individually, collapse with `⌘\`)
 - **Outline in reading mode**: click a heading to jump, auto-highlights while scrolling
 - **File association**: can be set as the default app for `.md` files, double-click to open from Finder
+- **Export to HTML / PDF** (HTML is a self-contained styled file; PDF via system print)
 - Follows the **system light/dark theme**
 - Unsaved-changes prompt; the Save button lights up when there are unsaved changes
 
