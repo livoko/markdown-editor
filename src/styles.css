@@ -241,6 +241,170 @@ body {
   display: flex;
   flex-direction: column;
   height: 100%;
+  position: relative; /* 查找弹窗的定位上下文 */
+}
+
+/* ---------- 查找/替换弹窗（右上角浮层） ---------- */
+.find-popup {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  width: 360px;
+  max-width: calc(100% - 32px);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+  animation: find-in 0.16s ease;
+}
+
+@keyframes find-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.find-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.find-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 28px;
+  padding: 0 8px;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--bg-chrome);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  outline: none;
+  transition: border-color 0.12s ease;
+}
+
+.find-input:focus {
+  border-color: var(--accent);
+}
+
+.find-count {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--text-muted);
+  min-width: 42px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.find-opt {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.find-opt:hover {
+  background: var(--btn-hover);
+  color: var(--text);
+}
+
+.find-opt.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.find-sep {
+  flex: 0 0 auto;
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+  margin: 0 2px;
+}
+
+.find-icon-btn {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.find-icon-btn:hover {
+  background: var(--btn-hover);
+  color: var(--text);
+}
+
+.find-btn {
+  flex: 0 0 auto;
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+  color: var(--text);
+  background: var(--btn-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.find-btn:hover {
+  background: var(--btn-hover);
+}
+
+/* 查找匹配高亮 */
+.cm-searchMatch {
+  background: rgba(31, 92, 255, 0.16);
+  border-radius: 2px;
+}
+
+.cm-searchMatch-selected {
+  background: rgba(31, 92, 255, 0.34);
+}
+
+:root[data-theme="dark"] .cm-searchMatch {
+  background: rgba(74, 158, 255, 0.24);
+}
+
+:root[data-theme="dark"] .cm-searchMatch-selected {
+  background: rgba(74, 158, 255, 0.45);
+}
+
+/* 同词高亮（查找时当前匹配被选中，其余同词高亮） */
+.cm-selectionMatch {
+  background: rgba(31, 92, 255, 0.15);
+  border-radius: 2px;
+}
+
+:root[data-theme="dark"] .cm-selectionMatch {
+  background: rgba(74, 158, 255, 0.22);
 }
 
 /* ---------- 工具栏 ---------- */

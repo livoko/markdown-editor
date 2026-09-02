@@ -1,10 +1,18 @@
 import { EditorView, basicSetup } from "codemirror";
-import { EditorState, Compartment } from "@codemirror/state";
+import { EditorState, Compartment, Prec } from "@codemirror/state";
 import { keymap } from "@codemirror/view";
 import { markdown } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
 import { oneDark } from "@codemirror/theme-one-dark";
-import { search } from "@codemirror/search";
+import {
+  search,
+  SearchQuery,
+  setSearchQuery,
+  findNext,
+  findPrevious,
+  replaceNext,
+  replaceAll,
+} from "@codemirror/search";
 
 import MarkdownIt from "markdown-it";
 import taskLists from "markdown-it-task-lists";
@@ -55,6 +63,17 @@ const I18N = {
     mdFilter: "Markdown",
     switchTo: "Switch to English",
     langLabel: "EN",
+    findPlaceholder: "查找",
+    replacePlaceholder: "替换",
+    findPrev: "上一个",
+    findNext: "下一个",
+    findClose: "关闭",
+    replaceOne: "替换",
+    replaceAll: "全部替换",
+    optCase: "区分大小写",
+    optWord: "全字匹配",
+    optRegex: "正则表达式",
+    noResults: "无结果",
   },
   en: {
     new: "New",
@@ -82,6 +101,17 @@ const I18N = {
     mdFilter: "Markdown",
     switchTo: "切换为中文",
     langLabel: "中",
+    findPlaceholder: "Find",
+    replacePlaceholder: "Replace",
+    findPrev: "Previous",
+    findNext: "Next",
+    findClose: "Close",
+    replaceOne: "Replace",
+    replaceAll: "Replace all",
+    optCase: "Match case",
+    optWord: "Whole word",
+    optRegex: "Regular expression",
+    noResults: "No results",
   },
 } as const;
 
@@ -97,24 +127,6 @@ function detectLang(): Lang {
 
 let lang: Lang = detectLang();
 const t = () => I18N[lang];
-
-// CodeMirror 查找/替换面板的中文文案（英文用其默认值）
-const SEARCH_PHRASES_ZH: Record<string, string> = {
-  "Find": "查找",
-  "Replace": "替换",
-  "next": "下一个",
-  "previous": "上一个",
-  "all": "全部",
-  "match case": "区分大小写",
-  "by word": "全字匹配",
-  "regexp": "正则",
-  "replace": "替换",
-  "replace all": "全部替换",
-  "close": "关闭",
-  "Go to line": "跳转到行",
-  "go": "跳转",
-  "current match": "当前匹配",
-};
 
 // ---------- Markdown 渲染器 ----------
 function escapeHtml(s: string): string {
@@ -147,11 +159,6 @@ const md = new MarkdownIt({
 
 // ---------- CodeMirror 编辑器 ----------
 const themeCompartment = new Compartment();
-const searchPhrasesCompartment = new Compartment(); // 查找/替换面板文案（随语言切换）
-
-function searchPhrasesExt() {
-  return EditorState.phrases.of(lang === "zh" ? SEARCH_PHRASES_ZH : {});
-}
 
 const editorParent = document.getElementById("editor")!;
 const readViewEl = document.getElementById("read-view")!;
@@ -164,6 +171,13 @@ const sidebarToggle = document.getElementById("sidebar-toggle")!;
 const saveBtn = document.getElementById("btn-save")!;
 const langToggle = document.getElementById("lang-toggle")!;
 const sidebarTitle = document.getElementById("sidebar-title")!;
+const findPopup = document.getElementById("find-popup")!;
+const findInput = document.getElementById("find-input") as HTMLInputElement;
+const replaceInput = document.getElementById("replace-input") as HTMLInputElement;
+const findCountEl = document.getElementById("find-count")!;
+const optCaseBtn = document.getElementById("opt-case")!;
+const optWordBtn = document.getElementById("opt-word")!;
+const optRegexBtn = document.getElementById("opt-regex")!;
 
 // 安全获取当前窗口：非 Tauri 环境（浏览器预览）下 getCurrentWindow() 会同步抛错
 let appWindow: ReturnType<typeof getCurrentWindow> | null = null;
@@ -181,8 +195,19 @@ const editor = new EditorView({
       basicSetup,
       markdown({ codeLanguages: languages }),
       EditorView.lineWrapping,
-      search({ top: true }), // 查找/替换面板置顶（含"全部替换"批量替换）
-      searchPhrasesCompartment.of(searchPhrasesExt()),
+      search(), // 提供搜索状态与匹配高亮（UI 用自定义右上角弹窗，见 find-popup）
+      // 拦截 ⌘F：打开自定义弹窗，而不是 CodeMirror 自带的丑面板（高优先级压过默认）
+      Prec.highest(
+        keymap.of([
+          {
+            key: "Mod-f",
+            run: () => {
+              openFind();
+              return true;
+            },
+          },
+        ])
+      ),
       themeCompartment.of([]), // 主题由 applyTheme 动态注入
       EditorView.updateListener.of((update) => {
         if (update.docChanged && !loadingContent) {
@@ -305,6 +330,7 @@ function switchMode(next: "edit" | "read") {
 
   readViewEl.classList.toggle("hidden", !isRead);
   editorParent.classList.toggle("hidden", isRead);
+  if (isRead) findPopup.classList.add("hidden"); // 阅读模式关闭查找弹窗
 
   // 新显示的面板淡入（重启动画：先移除再强制重排再加）
   const showEl = isRead ? readViewEl : editorParent;
@@ -502,6 +528,86 @@ function toggleSidebar() {
   setSidebarCollapsed(!appEl.classList.contains("sidebar-collapsed"));
 }
 
+// ---------- 查找/替换弹窗 ----------
+let findCase = false;
+let findWord = false;
+let findRegex = false;
+
+function buildQuery(): SearchQuery {
+  return new SearchQuery({
+    search: findInput.value,
+    replace: replaceInput.value,
+    caseSensitive: findCase,
+    regexp: findRegex,
+    wholeWord: findWord,
+  });
+}
+
+// 把当前查找+替换值同步进搜索查询（替换操作前必须调用）
+function syncQuery() {
+  editor.dispatch({ effects: setSearchQuery.of(buildQuery()) });
+}
+
+// 设置查询（触发高亮）；可选跳到下一个匹配；刷新计数
+function refreshFind(jump: boolean) {
+  const q = buildQuery();
+  editor.dispatch({ effects: setSearchQuery.of(q) });
+  if (jump && findInput.value && q.valid) findNext(editor);
+  updateFindCount(q);
+}
+
+function updateFindCount(q?: SearchQuery) {
+  const query = q ?? buildQuery();
+  if (!findInput.value || !query.valid) {
+    findCountEl.textContent = "";
+    return;
+  }
+  let total = 0;
+  let current = 0;
+  const sel = editor.state.selection.main;
+  try {
+    const cursor = query.getCursor(editor.state);
+    for (let it = cursor.next(); !it.done; it = cursor.next()) {
+      total++;
+      if (it.value.from === sel.from && it.value.to === sel.to) current = total;
+    }
+  } catch {
+    findCountEl.textContent = "";
+    return;
+  }
+  findCountEl.textContent = total === 0 ? t().noResults : `${current}/${total}`;
+}
+
+function openFind() {
+  if (mode === "read") switchMode("edit");
+  const sel = editor.state.sliceDoc(
+    editor.state.selection.main.from,
+    editor.state.selection.main.to
+  );
+  if (sel && !sel.includes("\n")) findInput.value = sel; // 用选中文本预填
+  findPopup.classList.remove("hidden");
+  refreshFind(false);
+  findInput.focus();
+  findInput.select();
+}
+
+function closeFind() {
+  findPopup.classList.add("hidden");
+  // 清空查询以移除高亮
+  editor.dispatch({ effects: setSearchQuery.of(new SearchQuery({ search: "" })) });
+  editor.focus();
+}
+
+function toggleFindOption(which: "case" | "word" | "regex") {
+  if (which === "case") findCase = !findCase;
+  else if (which === "word") findWord = !findWord;
+  else findRegex = !findRegex;
+  optCaseBtn.classList.toggle("active", findCase);
+  optWordBtn.classList.toggle("active", findWord);
+  optRegexBtn.classList.toggle("active", findRegex);
+  refreshFind(true);
+}
+
 // ---------- 语言应用 ----------
 function applyLang() {
   const s = t();
@@ -520,6 +626,17 @@ function applyLang() {
   recentClearBtn.setAttribute("aria-label", s.clearAll);
   langToggle.textContent = s.langLabel;
   langToggle.title = s.switchTo;
+  // 查找/替换弹窗文案
+  findInput.placeholder = s.findPlaceholder;
+  replaceInput.placeholder = s.replacePlaceholder;
+  document.getElementById("find-prev")!.title = s.findPrev;
+  document.getElementById("find-next")!.title = s.findNext;
+  document.getElementById("find-close")!.title = s.findClose;
+  document.getElementById("replace-one")!.textContent = s.replaceOne;
+  document.getElementById("replace-all")!.textContent = s.replaceAll;
+  optCaseBtn.title = s.optCase;
+  optWordBtn.title = s.optWord;
+  optRegexBtn.title = s.optRegex;
   document.documentElement.lang = lang === "zh" ? "zh-CN" : "en";
   // 依赖语言的动态区一并刷新
   setSidebarCollapsed(appEl.classList.contains("sidebar-collapsed")); // 刷新收起按钮 title
@@ -536,10 +653,6 @@ function setLang(next: Lang) {
     /* 忽略 */
   }
   applyLang();
-  // 刷新查找/替换面板文案
-  editor.dispatch({
-    effects: searchPhrasesCompartment.reconfigure(searchPhrasesExt()),
-  });
 }
 
 function toggleLang() {
@@ -578,6 +691,54 @@ recentClearBtn.addEventListener("click", () => {
 
 // 侧边栏收起/展开
 sidebarToggle.addEventListener("click", toggleSidebar);
+
+// 查找/替换弹窗
+findInput.addEventListener("input", () => refreshFind(true));
+findInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    if (e.shiftKey) findPrevious(editor);
+    else findNext(editor);
+    updateFindCount();
+  } else if (e.key === "Escape") {
+    e.preventDefault();
+    closeFind();
+  }
+});
+replaceInput.addEventListener("input", syncQuery); // 替换值改动即时同步进查询
+replaceInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    syncQuery();
+    replaceNext(editor);
+    updateFindCount();
+  } else if (e.key === "Escape") {
+    e.preventDefault();
+    closeFind();
+  }
+});
+document.getElementById("find-prev")!.addEventListener("click", () => {
+  findPrevious(editor);
+  updateFindCount();
+});
+document.getElementById("find-next")!.addEventListener("click", () => {
+  findNext(editor);
+  updateFindCount();
+});
+document.getElementById("find-close")!.addEventListener("click", closeFind);
+document.getElementById("replace-one")!.addEventListener("click", () => {
+  syncQuery();
+  replaceNext(editor);
+  updateFindCount();
+});
+document.getElementById("replace-all")!.addEventListener("click", () => {
+  syncQuery();
+  replaceAll(editor);
+  updateFindCount();
+});
+optCaseBtn.addEventListener("click", () => toggleFindOption("case"));
+optWordBtn.addEventListener("click", () => toggleFindOption("word"));
+optRegexBtn.addEventListener("click", () => toggleFindOption("regex"));
 
 // 语言切换（中 / EN）
 langToggle.addEventListener("click", toggleLang);

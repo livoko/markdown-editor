@@ -58,6 +58,32 @@
             <div id="preview" class="preview-pane markdown-body"></div>
           </div>
         </main>
+
+        <!-- 查找/替换弹窗（右上角浮层，⌘F 唤起） -->
+        <div id="find-popup" class="find-popup hidden">
+          <div class="find-row">
+            <input id="find-input" class="find-input" type="text" spellcheck="false" placeholder="查找" />
+            <span id="find-count" class="find-count"></span>
+            <button id="opt-case" class="find-opt" type="button" title="区分大小写">Aa</button>
+            <button id="opt-word" class="find-opt" type="button" title="全字匹配">W</button>
+            <button id="opt-regex" class="find-opt" type="button" title="正则表达式">.*</button>
+            <span class="find-sep"></span>
+            <button id="find-prev" class="find-icon-btn" type="button" title="上一个" aria-label="上一个">
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10l4-4 4 4" /></svg>
+            </button>
+            <button id="find-next" class="find-icon-btn" type="button" title="下一个" aria-label="下一个">
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l4 4 4-4" /></svg>
+            </button>
+            <button id="find-close" class="find-icon-btn" type="button" title="关闭" aria-label="关闭">
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4l8 8M12 4l-8 8" /></svg>
+            </button>
+          </div>
+          <div class="find-row">
+            <input id="replace-input" class="find-input" type="text" spellcheck="false" placeholder="替换" />
+            <button id="replace-one" class="find-btn" type="button">替换</button>
+            <button id="replace-all" class="find-btn" type="button">全部替换</button>
+          </div>
+        </div>
       </div>
     </div>
   </body>
