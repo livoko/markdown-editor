@@ -4,6 +4,8 @@
 
 一个简洁的 macOS 桌面 Markdown 编辑器，支持阅读与编辑两种模式。基于 [Tauri 2](https://tauri.app/) + TypeScript 构建，体积小、启动快。
 
+**[⬇️ 下载 macOS 版（Apple Silicon）](https://github.com/livoko/markdown-editor/releases/latest)**
+
 ![阅读模式：左侧最近文件、中间大纲导航、右侧渲染预览](docs/screenshot-read.png)
 
 <details>

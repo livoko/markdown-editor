@@ -4,6 +4,8 @@
 
 A clean, native macOS Markdown editor with separate reading and editing modes. Built with [Tauri 2](https://tauri.app/) + TypeScript — small footprint, fast startup.
 
+**[⬇️ Download for macOS (Apple Silicon)](https://github.com/livoko/markdown-editor/releases/latest)**
+
 ![Reading mode: recent files on the left, outline in the middle, rendered preview on the right](docs/screenshot-read.png)
 
 <details>
