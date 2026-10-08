@@ -77,6 +77,8 @@ const I18N = {
     exportLabel: "导出",
     exportHtml: "导出 HTML",
     exportPdf: "导出 PDF",
+    copyAll: "复制全文",
+    copied: "已复制",
   },
   en: {
     new: "New",
@@ -118,6 +120,8 @@ const I18N = {
     exportLabel: "Export",
     exportHtml: "Export HTML",
     exportPdf: "Export PDF",
+    copyAll: "Copy all",
+    copied: "Copied",
   },
 } as const;
 
@@ -187,6 +191,7 @@ const optRegexBtn = document.getElementById("opt-regex")!;
 const exportBtn = document.getElementById("btn-export")!;
 const exportMenu = document.getElementById("export-menu")!;
 const printArea = document.getElementById("print-area")!;
+const copyBtn = document.getElementById("btn-copy")!;
 
 // 安全获取当前窗口：非 Tauri 环境（浏览器预览）下 getCurrentWindow() 会同步抛错
 let appWindow: ReturnType<typeof getCurrentWindow> | null = null;
@@ -702,6 +707,38 @@ function closeExportMenu() {
   exportMenu.classList.add("hidden");
 }
 
+// ---------- 复制全文（Markdown 源码，两种模式都可用） ----------
+let copiedTimer: number | undefined;
+
+async function copyAll() {
+  const text = getContent();
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    // 回退：隐藏 textarea + execCommand（旧 WebView 或非安全上下文）
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+      document.execCommand("copy");
+    } catch {
+      /* 忽略 */
+    }
+    document.body.removeChild(ta);
+  }
+  // 成功反馈：切绿色对勾 + tooltip，1.5s 后还原
+  copyBtn.classList.add("copied");
+  copyBtn.title = t().copied;
+  if (copiedTimer) clearTimeout(copiedTimer);
+  copiedTimer = window.setTimeout(() => {
+    copyBtn.classList.remove("copied");
+    copyBtn.title = t().copyAll;
+  }, 1500);
+}
+
 // ---------- 语言应用 ----------
 function applyLang() {
   const s = t();
@@ -736,6 +773,7 @@ function applyLang() {
   exportBtn.title = s.exportLabel;
   document.getElementById("export-html")!.textContent = s.exportHtml;
   document.getElementById("export-pdf")!.textContent = s.exportPdf;
+  if (!copyBtn.classList.contains("copied")) copyBtn.title = s.copyAll;
   document.documentElement.lang = lang === "zh" ? "zh-CN" : "en";
   // 依赖语言的动态区一并刷新
   setSidebarCollapsed(appEl.classList.contains("sidebar-collapsed")); // 刷新收起按钮 title
@@ -838,6 +876,9 @@ document.getElementById("replace-all")!.addEventListener("click", () => {
 optCaseBtn.addEventListener("click", () => toggleFindOption("case"));
 optWordBtn.addEventListener("click", () => toggleFindOption("word"));
 optRegexBtn.addEventListener("click", () => toggleFindOption("regex"));
+
+// 复制全文
+copyBtn.addEventListener("click", copyAll);
 
 // 导出菜单
 exportBtn.addEventListener("click", toggleExportMenu);

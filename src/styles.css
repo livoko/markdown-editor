@@ -553,6 +553,23 @@ body {
   background: var(--btn-hover);
 }
 
+/* 复制全文按钮：成功时图标切成绿色对勾 */
+.copy-btn .icon-check {
+  display: none;
+}
+
+.copy-btn.copied {
+  color: #22a06b;
+}
+
+.copy-btn.copied .icon-copy {
+  display: none;
+}
+
+.copy-btn.copied .icon-check {
+  display: inline;
+}
+
 /* 模式切换开关 */
 .mode-switch {
   display: inline-flex;
