@@ -22,6 +22,7 @@ import githubDark from "highlight.js/styles/github-dark.css?inline";
 
 import { invoke } from "@tauri-apps/api/core";
 import { open, save, ask, message } from "@tauri-apps/plugin-dialog";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { listen } from "@tauri-apps/api/event";
 
@@ -942,6 +943,20 @@ async function loadPendingFileOnStartup() {
     /* 忽略：非 Tauri 环境或无待打开文件 */
   }
 }
+
+// 阅读模式点击外部链接：用系统浏览器打开，避免 webview 被导航走导致回不到 app
+previewEl.addEventListener("click", (e) => {
+  const anchor = (e.target as HTMLElement).closest("a");
+  if (!anchor) return;
+  e.preventDefault(); // 阻止 webview 自身跳转
+  const href = anchor.getAttribute("href");
+  if (!href || !/^(https?:|mailto:)/i.test(href)) return;
+  try {
+    openUrl(href).catch(() => window.open(href, "_blank", "noopener"));
+  } catch {
+    window.open(href, "_blank", "noopener"); // 非 Tauri 环境回退
+  }
+});
 
 // 正文滚动时，高亮大纲中当前所在的标题
 previewEl.addEventListener("scroll", () => {
